@@ -1,0 +1,3 @@
+(compile -s -O3 mystruct.scm -j mystruct)
+(compile -s -O3 mystruct.import.scm)
+(install-extension 'mystruct '("mystruct.so" "mystruct.import.so"))
