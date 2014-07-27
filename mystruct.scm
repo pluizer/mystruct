@@ -4,6 +4,7 @@
 ;; Usage:
 ;; (define-mystruct <name> <slot-def> [<wrapper>])
 ;; slot-dev: 
+;; <slot-name>
 ;; (<slot-name> <default-value> [getter] [setter])
 ;; (<slot-name> <default-value> _ [setter])
 ;; (<name>:create #!optinal values)
@@ -84,6 +85,12 @@
       (define-mystruct name
 	((slot-name default-value getter setter) ...)
 	(lambda (x) x)))
+
+     ((_ name (slot-name rest ...) wrapper ...)
+      (define-mystruct name
+	(rest ... (slot-name #f))
+	wrapper ...))
+
      ))
 
 )
