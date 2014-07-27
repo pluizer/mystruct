@@ -75,12 +75,16 @@
 	((slot-name default-value (lambda (x) x) setter) ...)
 	wrapper ...))
 
+     ((_ name ((slot-name default-value getter setter) ...)
+	 wrapper)
+      (%define-mystruct name wrapper (slot-name default-value getter setter) ...))
+
      ((_ name
 	 ((slot-name default-value getter setter) ...))
       (define-mystruct name
 	((slot-name default-value getter setter) ...)
 	(lambda (x) x)))
+     ))
 
-     ((_ name ((slot-name default-value getter setter) ...)
-	 wrapper)
-      (%define-mystruct name wrapper (slot-name default-value getter setter) ...))))
+)
+ 
