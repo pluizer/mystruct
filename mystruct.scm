@@ -7,6 +7,8 @@
 ;; <slot-name>
 ;; (<slot-name> <default-value> [getter] [setter])
 ;; (<slot-name> <default-value> _ [setter])
+;; (<slot-name> <default-value> getter _) ; make slot read-only
+;; (<slot-name> <default-value> _ _)      ; make slot read-only
 ;; (<name>:create #!optinal values)
 ;; (<name>? obj)
 ;; (<name>:<slot-name> obj)
@@ -57,40 +59,50 @@
 
  (define-syntax define-mystruct
    (syntax-rules (_)
-     ((_ name ((slot-name default-value) ...)
+
+     ((_ name ((slot-name default)
+	       rest ...)
 	 wrapper ...)
-      (define-mystruct name
-	((slot-name default-value (lambda (x) x)) ...)
+      (define-mystruct name 
+	(rest ... (slot-name default (lambda (x) x)))
 	wrapper ...))
 
-     ((_ name ((slot-name default-value getter) ...)
+     ((_ name ((slot-name default getter)
+	       rest ...)
 	 wrapper ...)
       (define-mystruct name
-	((slot-name default-value getter (lambda (x v) v)) ...)
+	(rest ... (slot-name default getter (lambda (o v) v)))
 	wrapper ...))
 
-     ((_ name
-	 ((slot-name default-value _ setter) ...)
+     ((_ name ((slot-name default _ setter)
+	       rest ...)
 	 wrapper ...)
       (define-mystruct name
-	((slot-name default-value (lambda (x) x) setter) ...)
+	(rest ... (slot-name default (lambda (x) x) setter))
 	wrapper ...))
 
-     ((_ name ((slot-name default-value getter setter) ...)
-	 wrapper)
-      (%define-mystruct name wrapper (slot-name default-value getter setter) ...))
-
-     ((_ name
-	 ((slot-name default-value getter setter) ...))
+     ((_ name ((slot-name default getter _) rest ...))
       (define-mystruct name
-	((slot-name default-value getter setter) ...)
+     	(rest ... (slot-name default getter
+     		    (lambda (_) (error "read only"))))
+     	(lambda (x) x)))
+
+     ((_ name ((slot-name default getter setter) ...))
+      (define-mystruct name
+	((slot-name default getter setter) ...)
 	(lambda (x) x)))
 
-     ((_ name (slot-name rest ...) wrapper ...)
-      (define-mystruct name
-	(rest ... (slot-name #f))
-	wrapper ...))
 
+     ((_ name ((slot-name default getter setter) ...)
+	 wrapper)
+      (%define-mystruct name wrapper
+			(slot-name default getter setter) ...))
+
+     ((_ name (slot-dev rest ...)
+	 wrapper ...)
+      (define-mystruct name
+	((slot-dev #f) rest ...)
+	wrapper ...))
      ))
 
 )
