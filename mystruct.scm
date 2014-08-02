@@ -2,13 +2,10 @@
 ;; Richard van Roy (c) 2014
 ;; License: do what you like.
 ;; Usage:
-;; (define-mystruct <name> <slot-def> [<wrapper>])
-;; slot-dev: 
+;; (define-mystruct <name> <slots> [<wrapper>])
+;; slots: 
 ;; <slot-name>
-;; (<slot-name> <default-value> [getter] [setter])
-;; (<slot-name> <default-value> _ [setter])
-;; (<slot-name> <default-value> getter _) ; make slot read-only
-;; (<slot-name> <default-value> _ _)      ; make slot read-only
+;; (<slot-name> <default-value> #!key [getter] [setter])
 ;; (<name>:create #!optinal values)
 ;; (<name>? obj)
 ;; (<name>:<slot-name> obj)
@@ -16,94 +13,81 @@
 
 (module mystruct
 	(define-mystruct)
+	(import-for-syntax chicken scheme)
 	(import chicken scheme)
 	(use srfi-1 matchable)
 
- (define-syntax %define-mystruct
-   (ir-macro-transformer
-    (lambda (exp inj cmp?)
-      (apply (lambda (_ name wrapper #!rest slots)
-	       
-	       `(begin	      
-		  (define (,(inj (symbol-append (inj name) ':create))
-			   #!optional
-			   ,@(map (lambda (x) (list (car x) (cadr x))) slots))
-		    (,wrapper
-		     (vector ',(inj name) ,@(map car slots))))
+(define-syntax define-mystruct
+  (ir-macro-transformer
+   (lambda (exp inj cmp)
+     (apply
+      (lambda (_ <name> <slots> #!optional <wrapper>)
 
-		  (define (,(symbol-append (inj name) '?) obj)
-		    (and (vector? obj)
-			 (eq? (vector-ref obj 0) ',(inj name))))
+	(define (prep-slot <slot/name>)
 
-		  ,@(map 
-		     (lambda (slot count)
-		       (apply (lambda (slot-name _ getter setter)
-				`(define ,(symbol-append (inj name) ':
-							 (inj slot-name))
-				   (getter-with-setter
-				    (lambda (obj)
-				      (unless
-				       (,(symbol-append (inj name) '?) obj)
-				       (print "wrong object"))
-				      (,getter
-				       (vector-ref obj ,(+ count 1))))
-				    (lambda (obj value)
-				      (unless
-				       (,(symbol-append (inj name) '?) obj)
-				       (print "wrong object"))
-				      (vector-set! obj ,(+ count 1)
-						   (,setter obj value))))))
-			      slot))
-		     slots (iota (length slots)))))
-	     exp))))
+	  (apply (lambda (<slot-name> <value> #!key 
+				 (get-wrap (lambda (v) v))
+				 (set-wrap (lambda (o v) v)))
+		   
+		   `(,<slot-name> ,<value> ,get-wrap ,set-wrap)) 
+		 (if (list? <slot/name>) <slot/name> `(,<slot/name> #f))))
 
- (define-syntax define-mystruct
-   (syntax-rules (_)
+	(define (create-name)
+	  (symbol-append (inj <name>) ':create))
 
-     ((_ name ((slot-name default)
-	       rest ...)
-	 wrapper ...)
-      (define-mystruct name 
-	(rest ... (slot-name default (lambda (x) x)))
-	wrapper ...))
+	(define (make-name)
+	  (symbol-append (inj <name>) ':make))
 
-     ((_ name ((slot-name default getter)
-	       rest ...)
-	 wrapper ...)
-      (define-mystruct name
-	(rest ... (slot-name default getter (lambda (o v) v)))
-	wrapper ...))
+	(define (pred-name)
+	  (symbol-append (inj <name>) '?))
 
-     ((_ name ((slot-name default _ setter)
-	       rest ...)
-	 wrapper ...)
-      (define-mystruct name
-	(rest ... (slot-name default (lambda (x) x) setter))
-	wrapper ...))
+	(define (ref-name <slot-name>)
+	  (symbol-append (inj <name>) ': (inj <slot-name>)))
 
-     ((_ name ((slot-name default getter _) rest ...))
-      (define-mystruct name
-     	(rest ... (slot-name default getter
-     		    (lambda (_) (error "read only"))))
-     	(lambda (x) x)))
+	(define (init-args <prepped-slots>)
+	  (map (lambda (<slot>)
+		 (list (car <slot>)
+		       (cadr <slot>)))
+	       <prepped-slots>))
 
-     ((_ name ((slot-name default getter setter) ...))
-      (define-mystruct name
-	((slot-name default getter setter) ...)
-	(lambda (x) x)))
+	(define (slot-names <prepped-slots>)
+	  (map car <prepped-slots>))
 
+	(define (check-type)
+	  `(unless (,(pred-name) obj)
+		   (error (sprintf "~a: wrong object, expected object of type '~a'." 
+				   obj ',<name>))))
 
-     ((_ name ((slot-name default getter setter) ...)
-	 wrapper)
-      (%define-mystruct name wrapper
-			(slot-name default getter setter) ...))
+	(define (slot-ref <slot> <pos>)
+	  (apply (lambda (<slot-name> <value> <get-wrap> <set-wrap>)
+		   `(define ,(ref-name <slot-name>)
+		      (getter-with-setter
+		       (lambda (obj)
+			 ,(check-type)
+			 (,<get-wrap> (vector-ref obj ,<pos>)))
+		       (lambda (obj value)
+			 ,(check-type)
+			 (vector-set! obj ,<pos> (,<set-wrap> obj value)))))) <slot>))
 
-     ((_ name (slot-dev rest ...)
-	 wrapper ...)
-      (define-mystruct name
-	((slot-dev #f) rest ...)
-	wrapper ...))
-     ))
+	(let ((<prepped-slots> (map prep-slot <slots>)))
+
+	 `(begin
+	  
+	    (define (,(make-name) #!key ,@(init-args <prepped-slots>))
+	      (,(if <wrapper> <wrapper> (lambda (x) x))
+	       (vector ',<name> ,@(slot-names <prepped-slots>))))
+
+	    (define (,(create-name) #!optional ,@(init-args <prepped-slots>))
+	      (,(if <wrapper> <wrapper> (lambda (x) x))
+	       (vector ',<name> ,@(slot-names <prepped-slots>))))
+	    
+	    (define (,(pred-name) obj)
+	      (and
+	       (vector? obj)
+	       (eq? (vector-ref obj 0) ',<name>)))
+
+	    ,@(map slot-ref <prepped-slots> (iota (length <prepped-slots>) 1))
+	    )))  exp))))
 
 )
  
