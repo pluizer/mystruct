@@ -15,6 +15,7 @@
 
 (module mystruct
 	(define-mystruct)
+	;; for using #!key and #!optional inside a macro.
 	(import-for-syntax chicken scheme)
 	(import chicken scheme)
 	(use srfi-1 matchable)
@@ -25,14 +26,14 @@
      (apply
       (lambda (_ <name> <slots> #!optional <wrapper>)
 
+	;; Wrapper functions default to stub functions that simply
+	;; returns the value passed to it.
 	(define (prep-slot <slot/name>)
-
 	  (apply (lambda (<slot-name> <value> #!key 
 				 (getter-wrap (lambda (v) v))
 				 (setter-wrap (lambda (o v) v)))
 		   (let ((<getter-wrap> getter-wrap)
 			 (<setter-wrap> setter-wrap))
-		   
 		    `(,<slot-name> ,<value> ,<getter-wrap> ,<setter-wrap>))) 
 		 (if (list? <slot/name>) <slot/name> `(,<slot/name> #f))))
 
@@ -71,27 +72,31 @@
 			 (,<getter-wrap> (vector-ref obj ,<pos>)))
 		       (lambda (obj value)
 			 ,(check-type)
-			 (vector-set! obj ,<pos> (,<setter-wrap> obj value)))))) <slot>))
+			 (vector-set! obj ,<pos> (,<setter-wrap> obj value))))))
+		 <slot>))
 
 	(let ((<prepped-slots> (map prep-slot <slots>)))
-
 	 `(begin
-	  
+	    ;; An initialiser function that takes its slot arguments as a
+	    ;; key-value pair.
 	    (define (,(make-name) #!key ,@(init-args <prepped-slots>))
 	      (,(if <wrapper> <wrapper> (lambda (x) x))
 	       (vector ',<name> ,@(slot-names <prepped-slots>))))
 
+	    ;; An initialiser function that takes its slot arguments as a
+	    ;; list with the same order as specified in define-mystruct.
 	    (define (,(create-name) #!optional ,@(init-args <prepped-slots>))
 	      (,(if <wrapper> <wrapper> (lambda (x) x))
 	       (vector ',<name> ,@(slot-names <prepped-slots>))))
-	    
+
+	    ;; A predicate function that checks if an object is of this type.
 	    (define (,(pred-name) obj)
 	      (and
 	       (vector? obj)
 	       (eq? (vector-ref obj 0) ',<name>)))
 
+	    ;; Getters and setters for every slot specified.
 	    ,@(map slot-ref <prepped-slots> (iota (length <prepped-slots>) 1))
 	    )))  exp))))
 
 )
- 
