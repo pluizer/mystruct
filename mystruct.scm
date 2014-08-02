@@ -6,7 +6,7 @@
 ;; (define-mystruct <name> <slots> <wrapper>)
 ;; slots: 
 ;; <slot-name>
-;; (<slot-name> <default-value> #!key getter-wrap setter-wrap)
+;; (<slot-name> #!key value getter-wrap setter-wrap)
 ;; (<name>:create values ...)
 ;; (<name>:make (key value) ...)
 ;; (<name>? obj)
@@ -29,10 +29,11 @@
 	;; Wrapper functions default to stub functions that simply
 	;; returns the value passed to it.
 	(define (prep-slot <slot/name>)
-	  (apply (lambda (<slot-name> <value> #!key 
+	  (apply (lambda (<slot-name> #!key value
 				 (getter-wrap (lambda (v) v))
 				 (setter-wrap (lambda (o v) v)))
-		   (let ((<getter-wrap> getter-wrap)
+		   (let ((<value> value)
+			 (<getter-wrap> getter-wrap)
 			 (<setter-wrap> setter-wrap))
 		    `(,<slot-name> ,<value> ,<getter-wrap> ,<setter-wrap>))) 
 		 (if (list? <slot/name>) <slot/name> `(,<slot/name> #f))))
