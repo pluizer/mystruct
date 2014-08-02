@@ -1,12 +1,14 @@
 ;; My own structures.
 ;; Richard van Roy (c) 2014
 ;; License: do what you like.
+;;
 ;; Usage:
-;; (define-mystruct <name> <slots> [<wrapper>])
+;; (define-mystruct <name> <slots> <wrapper>)
 ;; slots: 
 ;; <slot-name>
-;; (<slot-name> <default-value> #!key [getter] [setter])
-;; (<name>:create #!optinal values)
+;; (<slot-name> <default-value> #!key getter-wrap setter-wrap)
+;; (<name>:create values ...)
+;; (<name>:make (key value) ...)
 ;; (<name>? obj)
 ;; (<name>:<slot-name> obj)
 ;; (set! (<name>:<slot-name> obj) value)
@@ -26,10 +28,12 @@
 	(define (prep-slot <slot/name>)
 
 	  (apply (lambda (<slot-name> <value> #!key 
-				 (get-wrap (lambda (v) v))
-				 (set-wrap (lambda (o v) v)))
+				 (getter-wrap (lambda (v) v))
+				 (setter-wrap (lambda (o v) v)))
+		   (let ((<getter-wrap> getter-wrap)
+			 (<setter-wrap> setter-wrap))
 		   
-		   `(,<slot-name> ,<value> ,get-wrap ,set-wrap)) 
+		    `(,<slot-name> ,<value> ,<getter-wrap> ,<setter-wrap>))) 
 		 (if (list? <slot/name>) <slot/name> `(,<slot/name> #f))))
 
 	(define (create-name)
@@ -59,15 +63,15 @@
 				   obj ',<name>))))
 
 	(define (slot-ref <slot> <pos>)
-	  (apply (lambda (<slot-name> <value> <get-wrap> <set-wrap>)
+	  (apply (lambda (<slot-name> <value> <getter-wrap> <setter-wrap>)
 		   `(define ,(ref-name <slot-name>)
 		      (getter-with-setter
 		       (lambda (obj)
 			 ,(check-type)
-			 (,<get-wrap> (vector-ref obj ,<pos>)))
+			 (,<getter-wrap> (vector-ref obj ,<pos>)))
 		       (lambda (obj value)
 			 ,(check-type)
-			 (vector-set! obj ,<pos> (,<set-wrap> obj value)))))) <slot>))
+			 (vector-set! obj ,<pos> (,<setter-wrap> obj value)))))) <slot>))
 
 	(let ((<prepped-slots> (map prep-slot <slots>)))
 
