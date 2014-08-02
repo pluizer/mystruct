@@ -1,7 +1,13 @@
 ;; My own structures.
 ;; Richard van Roy (c) 2014
 ;; License: do what you like.
-;;
+(module mystruct
+	(define-mystruct)
+	;; for using #!key and #!optional inside a macro.
+	(import-for-syntax chicken scheme)
+	(import chicken scheme)
+	(use srfi-1 matchable data-structures)
+
 ;; Usage:
 ;; (define-mystruct <name> <slots> <wrapper>)
 ;; slots: 
@@ -12,14 +18,6 @@
 ;; (<name>? obj)
 ;; (<name>:<slot-name> obj)
 ;; (set! (<name>:<slot-name> obj) value)
-
-(module mystruct
-	(define-mystruct)
-	;; for using #!key and #!optional inside a macro.
-	(import-for-syntax chicken scheme)
-	(import chicken scheme)
-	(use srfi-1 matchable)
-
 (define-syntax define-mystruct
   (ir-macro-transformer
    (lambda (exp inj cmp)
@@ -99,5 +97,32 @@
 	    ;; Getters and setters for every slot specified.
 	    ,@(map slot-ref <prepped-slots> (iota (length <prepped-slots>) 1))
 	    )))  exp))))
+
+(define %specials (list))
+
+;; Create/update a specialization function for a specific predicate.
+(define-syntax define-specialization
+  (ir-macro-transformer
+   (lambda (exp inj cmp)
+     (apply (lambda (_ <name> <pred> <func>)
+	      ;; Update record of all specials.
+	      (let ((value (alist-update 
+			    (inj <pred>)
+			    (inj <func>)
+			    (or (alist-ref (inj <name>) %specials) '()))))
+		(set! %specials (alist-update (inj <name>) value %specials)))
+	      ;; Create the function
+	      `(define (,(inj <name>) obj . args)
+		 (apply (cond ,@(map (lambda (<pred+func>)
+				 (let ((<pred> (car <pred+func>))
+				       (<func> (cdr <pred+func>)))
+				   `((,<pred> obj) ,<func>))) 
+			       (alist-ref (inj <name>) %specials))
+			      (else (error
+				     (sprintf "~a, no such specialisation."
+					      obj))))
+			(cons obj args))))
+	    exp))))
+
 
 )
