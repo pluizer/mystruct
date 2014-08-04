@@ -3,7 +3,7 @@
 ;; License: do what you like.
 (module mystruct
 	(define-mystruct
-	 define-specialization)
+	 define-general)
 	;; for using #!key and #!optional inside a macro.
 	(import-for-syntax chicken scheme)
 	(import chicken scheme)
@@ -102,7 +102,7 @@
 (define %specials (list))
 
 ;; Create/update a specialization function for a specific predicate.
-(define-syntax define-specialization
+(define-syntax define-general
   (ir-macro-transformer
    (lambda (exp inj cmp)
      (apply (lambda (_ <name> <pred> <func>)
