@@ -3,7 +3,8 @@
 ;; License: do what you like.
 (module mystruct
 	(define-mystruct
-	 define-general)
+	 define-general
+	 %%general-forms)
 	;; for using #!key and #!optional inside a macro.
 	(import-for-syntax chicken scheme)
 	(import chicken scheme)
@@ -99,7 +100,7 @@
 	    ,@(map slot-ref <prepped-slots> (iota (length <prepped-slots>) 1))
 	    )))  exp))))
 
-(define %specials (list))
+(define %%general-forms (list))
 
 ;; Create/update a specialization function for a specific predicate.
 (define-syntax define-general
@@ -110,15 +111,16 @@
 	      (let ((value (alist-update 
 			    (inj <pred>)
 			    (inj <func>)
-			    (or (alist-ref (inj <name>) %specials) '()))))
-		(set! %specials (alist-update (inj <name>) value %specials)))
+			    (or (alist-ref (inj <name>) %%general-forms) '()))))
+		(set! %%general-forms
+		      (alist-update (inj <name>) value %%general-forms)))
 	      ;; Create the function
 	      `(define (,(inj <name>) obj . args)
 		 (apply (cond ,@(map (lambda (<pred+func>)
 				 (let ((<pred> (car <pred+func>))
 				       (<func> (cdr <pred+func>)))
 				   `((,<pred> obj) ,<func>))) 
-			       (alist-ref (inj <name>) %specials))
+			       (alist-ref (inj <name>) %%general-forms))
 			      (else (error
 				     (sprintf "~a, no such specialisation."
 					      obj))))
