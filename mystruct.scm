@@ -3,8 +3,7 @@
 ;; License: do what you like.
 (module mystruct
 	(define-mystruct
-	 define-general
-	 %%general-forms)
+	 define-general)
 	;; for using #!key and #!optional inside a macro.
 	(import-for-syntax chicken scheme)
 	(import chicken scheme)
@@ -30,8 +29,8 @@
 	;; returns the value passed to it.
 	(define (prep-slot <slot/name>)
 	  (apply (lambda (<slot-name> #!key value
-				 (getter-wrap (lambda (v) v))
-				 (setter-wrap (lambda (o v) v)))
+				 (getter-wrap `(lambda (v) v))
+				 (setter-wrap `(lambda (o v) v)))
 		   (let ((<value> value)
 			 (<getter-wrap> getter-wrap)
 			 (<setter-wrap> setter-wrap))
@@ -81,13 +80,13 @@
 	    ;; An initialiser function that takes its slot arguments as a
 	    ;; key-value pair.
 	    (define (,(make-name) #!key ,@(init-args <prepped-slots>))
-	      (,(if <wrapper> <wrapper> (lambda (x) x))
+	      (,(if <wrapper> <wrapper> `(lambda (x) x))
 	       (vector ',<name> ,@(slot-names <prepped-slots>))))
 
 	    ;; An initialiser function that takes its slot arguments as a
 	    ;; list with the same order as specified in define-mystruct.
 	    (define (,(create-name) #!optional ,@(init-args <prepped-slots>))
-	      (,(if <wrapper> <wrapper> (lambda (x) x))
+	      (,(if <wrapper> <wrapper> `(lambda (x) x))
 	       (vector ',<name> ,@(slot-names <prepped-slots>))))
 
 	    ;; A predicate function that checks if an object is of this type.
@@ -98,9 +97,10 @@
 
 	    ;; Getters and setters for every slot specified.
 	    ,@(map slot-ref <prepped-slots> (iota (length <prepped-slots>) 1))
+
 	    )))  exp))))
 
-(define %%general-forms (list))
+(define-for-syntax %%general-forms (list))
 
 ;; Create/update a specialization function for a specific predicate.
 (define-syntax define-general
