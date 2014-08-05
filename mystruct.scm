@@ -2,8 +2,9 @@
 ;; Richard van Roy (c) 2014
 ;; License: do what you like.
 (module mystruct
-	(define-mystruct
-	 define-general)
+	( define-mystruct
+	  %%general-forms
+	  define-general)
 	;; for using #!key and #!optional inside a macro.
 	(import-for-syntax chicken scheme)
 	(import chicken scheme)
