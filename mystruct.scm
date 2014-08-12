@@ -14,6 +14,8 @@
 ;; slots: 
 ;; <slot-name>
 ;; (<slot-name> #!key value getter-wrap setter-wrap)
+;; To make an slot read-only pass set setter-wrap to "read-only"
+;; i.e (define-mystruct test ((x setter-wrap: read-only)))
 ;; (<name>:create values ...)
 ;; (<name>:make (key value) ...)
 ;; (<name>? obj)
@@ -33,7 +35,13 @@
 				 (setter-wrap `(lambda (o v) v)))
 		   (let ((<value> value)
 			 (<getter-wrap> getter-wrap)
-			 (<setter-wrap> setter-wrap))
+			 (<setter-wrap> 
+			  (if (cmp setter-wrap 'read-only)
+			      `(lambda (o v)
+				 (error ,(sprintf
+					  "~a:~a is read only."
+					  (inj <name>) (inj <slot-name>))))
+			      setter-wrap)))
 		    `(,<slot-name> ,<value> ,<getter-wrap> ,<setter-wrap>))) 
 		 (if (list? <slot/name>) <slot/name> `(,<slot/name> #f))))
 
