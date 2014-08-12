@@ -3,7 +3,6 @@
 ;; License: do what you like.
 (module mystruct
 	( define-mystruct
-	  %%general-forms
 	  define-general)
 	;; for using #!key and #!optional inside a macro.
 	(import-for-syntax chicken scheme)
