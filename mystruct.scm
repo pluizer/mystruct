@@ -9,8 +9,6 @@
 	(import chicken scheme)
 	(use srfi-1 matchable data-structures)
 
-(define-for-syntax %%mystruct-slots (list))
-
 ;; Usage:
 ;; (define-mystruct <name> <slots> <wrapper>)
 ;; slots: 
@@ -86,14 +84,6 @@
 		 <slot>))
 
 	(let ((<prepped-slots> (map prep-slot <slots>)))
-	  ;; Check if names exists
-	  (if (find (lambda (x) (eq? (car x) (inj <name>))) %%mystruct-slots)
-	      (error (sprintf "Structure name: ~a already taken." (inj <name>))))
-
-	  ;; Store slot names.
-	  (set! %%mystruct-slots
-		(alist-update! (inj <name>) (map inj (slot-names <prepped-slots>))
-			       %%mystruct-slots))
 	 `(begin
 	    ;; An initialiser function that takes its slot arguments as a
 	    ;; key-value pair.
