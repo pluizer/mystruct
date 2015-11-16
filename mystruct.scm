@@ -9,18 +9,32 @@
 	(import chicken scheme)
 	(use srfi-1 matchable data-structures)
 
-;; Usage:
-;; (define-mystruct <name> <slots> <wrapper>)
-;; slots: 
-;; <slot-name>
-;; (<slot-name> #!key value getter-wrap setter-wrap)
-;; To make an slot read-only pass set setter-wrap to "read-only"
-;; i.e (define-mystruct test ((x setter-wrap: read-only)))
-;; (<name>:create values ...)
-;; (<name>:make (key value) ...)
-;; (<name>? obj)
-;; (<name>:<slot-name> obj)
-;; (set! (<name>:<slot-name> obj) value)
+#|
+Usage:
+(define-mystruct <name> <slots> <wrapper>)
+slots: 
+<slot-name>
+(<slot-name> #!key value getter-wrap setter-wrap)
+To make an slot read-only pass set setter-wrap to "read-only"
+i.e (define-mystruct test ((x setter-wrap: read-only)))
+
+Creation:
+(<name>:create values ...)
+(<name>:make (key value) ...)
+
+Identification:
+(<name>? obj)
+
+Access:
+(<name>:<slot-name> obj)
+(set! (<name>:<slot-name> obj) value)
+
+Converting to and from a key-value map:
+
+(<name>->map obj)
+(map-><name> obj)
+|#        
+        
 (define-syntax define-mystruct
   (ir-macro-transformer
    (lambda (exp inj cmp)
@@ -56,6 +70,12 @@
 
 	(define (ref-name <slot-name>)
 	  (symbol-append (inj <name>) ': (inj <slot-name>)))
+
+        (define (->map-name)
+          (symbol-append (inj <name>) '->map))
+
+        (define (map<-name)
+          (symbol-append 'map-> (inj <name>)))
 
 	(define (init-args <prepped-slots>)
 	  (map (lambda (<slot>)
@@ -106,8 +126,21 @@
 	    ;; Getters and setters for every slot specified.
 	    ,@(map slot-ref <prepped-slots> (iota (length <prepped-slots>) 1))
 
+            ;; Function to convert struct to a key-value map
+            (define (,(->map-name) obj)
+              (map (lambda (slot-name ref)
+                     `(,slot-name . ,(vector-ref obj (+ ref 1))))
+                   '(,@(slot-names <prepped-slots>))
+                   (iota ,(length <prepped-slots>))))
 
-	    )))  exp))))
+            ;; Converts a key-value map to a struct
+            (define (,(map<-name) lst)
+              (apply ,(make-name)
+               (append-map
+                (lambda (pair)
+                  `(,(string->keyword (symbol->string (car pair))) ,(cdr pair)))  
+                lst)))
+            )))  exp))))
 
 (define-for-syntax %%general-forms (list))
 
